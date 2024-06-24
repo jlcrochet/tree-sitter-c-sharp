@@ -9368,8 +9368,11 @@
           ]
         },
         {
-          "type": "STRING",
-          "value": "'"
+          "type": "IMMEDIATE_TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "'"
+          }
         }
       ]
     },
@@ -9569,128 +9572,112 @@
           "value": "\""
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "string_literal_encoding"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
+          "type": "SYMBOL",
+          "name": "string_literal_encoding"
         }
       ]
     },
     "string_literal_content": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "IMMEDIATE_TOKEN",
-          "content": {
-            "type": "PREC",
-            "value": 1,
-            "content": {
-              "type": "PATTERN",
-              "value": "[^\"\\\\\\n]+"
-            }
-          }
-        },
-        {
-          "type": "PREC",
-          "value": 2,
-          "content": {
-            "type": "IMMEDIATE_TOKEN",
-            "content": {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "\\"
-                },
-                {
-                  "type": "PATTERN",
-                  "value": "[^abefnrtv'\\\"\\\\\\?0]"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    "escape_sequence": {
-      "type": "TOKEN",
+      "type": "IMMEDIATE_TOKEN",
       "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "PATTERN",
-            "value": "\\\\x[0-9a-fA-F]{2,4}"
-          },
-          {
-            "type": "PATTERN",
-            "value": "\\\\u[0-9a-fA-F]{4}"
-          },
-          {
-            "type": "PATTERN",
-            "value": "\\\\U[0-9a-fA-F]{8}"
-          },
-          {
-            "type": "PATTERN",
-            "value": "\\\\[abefnrtv'\\\"\\\\\\?0]"
-          }
-        ]
+        "type": "PREC",
+        "value": 1,
+        "content": {
+          "type": "PATTERN",
+          "value": "[^\"\\\\\\n]+"
+        }
       }
     },
     "string_literal_encoding": {
       "type": "IMMEDIATE_TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "(u|U)8"
+        "value": "([uU]8)?"
       }
     },
-    "verbatim_string_literal": {
-      "type": "TOKEN",
+    "escape_sequence": {
+      "type": "IMMEDIATE_TOKEN",
       "content": {
         "type": "SEQ",
         "members": [
           {
             "type": "STRING",
-            "value": "@\""
-          },
-          {
-            "type": "REPEAT",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "PATTERN",
-                  "value": "[^\"]"
-                },
-                {
-                  "type": "STRING",
-                  "value": "\"\""
-                }
-              ]
-            }
-          },
-          {
-            "type": "STRING",
-            "value": "\""
+            "value": "\\"
           },
           {
             "type": "CHOICE",
             "members": [
               {
                 "type": "PATTERN",
-                "value": "(u|U)8"
+                "value": "x[0-9a-fA-F]{2,4}"
               },
               {
-                "type": "BLANK"
+                "type": "PATTERN",
+                "value": "u[0-9a-fA-F]{4}"
+              },
+              {
+                "type": "PATTERN",
+                "value": "U[0-9a-fA-F]{8}"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[abefnrtv'\\\"\\\\\\?0]"
               }
             ]
           }
         ]
+      }
+    },
+    "verbatim_string_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "@\""
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "verbatim_string_literal_content"
+              },
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "IMMEDIATE_TOKEN",
+                  "content": {
+                    "type": "STRING",
+                    "value": "\"\""
+                  }
+                },
+                "named": true,
+                "value": "escape_sequence"
+              }
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "\""
+        },
+        {
+          "type": "SYMBOL",
+          "name": "string_literal_encoding"
+        }
+      ]
+    },
+    "verbatim_string_literal_content": {
+      "type": "IMMEDIATE_TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 1,
+        "content": {
+          "type": "PATTERN",
+          "value": "[^\"]+"
+        }
       }
     },
     "raw_string_literal": {
@@ -9709,16 +9696,8 @@
           "name": "raw_string_end"
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "PATTERN",
-              "value": "(u|U)8"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
+          "type": "SYMBOL",
+          "name": "string_literal_encoding"
         }
       ]
     },

@@ -38,8 +38,6 @@ const PREC = {
 
 const decimalDigitSequence = /([0-9][0-9_]*[0-9]|[0-9])/;
 
-const stringEncoding = /(u|U)8/;
-
 module.exports = grammar({
   name: 'c_sharp',
 
@@ -1740,7 +1738,7 @@ module.exports = grammar({
     character_literal: $ => seq(
       '\'',
       choice($.character_literal_content, $.escape_sequence),
-      '\'',
+      token.immediate('\''),
     ),
 
     character_literal_content: $ => token.immediate(/[^'\\]/),
@@ -1790,38 +1788,38 @@ module.exports = grammar({
         $.escape_sequence,
       )),
       '"',
-      optional($.string_literal_encoding),
+      $.string_literal_encoding
     ),
 
-    string_literal_content: _ => choice(
-      token.immediate(prec(1, /[^"\\\n]+/)),
-      prec(2, token.immediate(seq('\\', /[^abefnrtv'\"\\\?0]/))),
+    string_literal_content: $ => token.immediate(prec(1, /[^"\\\n]+/)),
+    string_literal_encoding: $ => token.immediate(/([uU]8)?/),
+
+    escape_sequence: _ => token.immediate(
+      seq('\\', choice(
+        /x[0-9a-fA-F]{2,4}/,
+        /u[0-9a-fA-F]{4}/,
+        /U[0-9a-fA-F]{8}/,
+        /[abefnrtv'\"\\\?0]/,
+      ))
     ),
 
-    escape_sequence: _ => token(choice(
-      /\\x[0-9a-fA-F]{2,4}/,
-      /\\u[0-9a-fA-F]{4}/,
-      /\\U[0-9a-fA-F]{8}/,
-      /\\[abefnrtv'\"\\\?0]/,
-    )),
-
-    string_literal_encoding: _ => token.immediate(stringEncoding),
-
-    verbatim_string_literal: _ => token(seq(
+    verbatim_string_literal: $ => seq(
       '@"',
       repeat(choice(
-        /[^"]/,
-        '""',
+        $.verbatim_string_literal_content,
+        alias(token.immediate('""'), $.escape_sequence)
       )),
       '"',
-      optional(stringEncoding),
-    )),
+      $.string_literal_encoding
+    ),
+
+    verbatim_string_literal_content: $ => token.immediate(prec(1, /[^"]+/)),
 
     raw_string_literal: $ => seq(
       $.raw_string_start,
       $.raw_string_content,
       $.raw_string_end,
-      optional(stringEncoding),
+      $.string_literal_encoding
     ),
 
     boolean_literal: _ => choice('true', 'false'),
