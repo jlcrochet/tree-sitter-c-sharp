@@ -18,7 +18,7 @@
     RAW_STRING_END, \
     RAW_STRING_CONTENT, \
 
-#ifndef TREE_SITTER_RAZOR
+#ifndef TREE_SITTER_MAIN_LANG
 enum TokenType { _C_SHARP_TOKENS_ };
 #endif
 
