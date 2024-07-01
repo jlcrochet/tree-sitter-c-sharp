@@ -4,66 +4,63 @@
 
 #include <wctype.h>
 
-#define _C_SHARP_TOKENS_ \
-    OPT_SEMI, \
-    INTERPOLATION_REGULAR_START, \
-    INTERPOLATION_VERBATIM_START, \
-    INTERPOLATION_RAW_START, \
-    INTERPOLATION_START_QUOTE, \
-    INTERPOLATION_END_QUOTE, \
-    INTERPOLATION_OPEN_BRACE, \
-    INTERPOLATION_CLOSE_BRACE, \
-    INTERPOLATION_STRING_CONTENT, \
-    RAW_STRING_START, \
-    RAW_STRING_END, \
-    RAW_STRING_CONTENT, \
-
-#ifndef TREE_SITTER_MAIN_LANG
-enum TokenType { _C_SHARP_TOKENS_ };
-#endif
+enum TokenType {
+    OPT_SEMI,
+    INTERPOLATION_REGULAR_START,
+    INTERPOLATION_VERBATIM_START,
+    INTERPOLATION_RAW_START,
+    INTERPOLATION_START_QUOTE,
+    INTERPOLATION_END_QUOTE,
+    INTERPOLATION_OPEN_BRACE,
+    INTERPOLATION_CLOSE_BRACE,
+    INTERPOLATION_STRING_CONTENT,
+    RAW_STRING_START,
+    RAW_STRING_END,
+    RAW_STRING_CONTENT,
+};
 
 typedef enum {
     REGULAR = 1 << 0,
     VERBATIM = 1 << 1,
     RAW = 1 << 2,
-} CSharp_StringType;
+} StringType;
 
 typedef struct {
     uint8_t dollar_count;
     uint8_t open_brace_count;
     uint8_t quote_count;
-    CSharp_StringType string_type;
-} CSharp_Interpolation;
+    StringType string_type;
+} Interpolation;
 
-static inline bool is_regular(CSharp_Interpolation *interpolation) { return interpolation->string_type & REGULAR; }
+static inline bool is_regular(Interpolation *interpolation) { return interpolation->string_type & REGULAR; }
 
-static inline bool is_verbatim(CSharp_Interpolation *interpolation) { return interpolation->string_type & VERBATIM; }
+static inline bool is_verbatim(Interpolation *interpolation) { return interpolation->string_type & VERBATIM; }
 
-static inline bool is_raw(CSharp_Interpolation *interpolation) { return interpolation->string_type & RAW; }
+static inline bool is_raw(Interpolation *interpolation) { return interpolation->string_type & RAW; }
 
 typedef struct {
     uint8_t quote_count;
-    Array(CSharp_Interpolation) interpolation_stack;
-} CSharp_Scanner;
+    Array(Interpolation) interpolation_stack;
+} Scanner;
 
 static inline void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
 
 static inline void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
 
 void *tree_sitter_c_sharp_external_scanner_create() {
-    CSharp_Scanner *scanner = ts_calloc(sizeof(CSharp_Scanner), 1);
+    Scanner *scanner = ts_calloc(sizeof(Scanner), 1);
     array_init(&scanner->interpolation_stack);
     return scanner;
 }
 
 void tree_sitter_c_sharp_external_scanner_destroy(void *payload) {
-    CSharp_Scanner *scanner = (CSharp_Scanner *)payload;
+    Scanner *scanner = (Scanner *)payload;
     array_delete(&scanner->interpolation_stack);
     ts_free(scanner);
 }
 
 unsigned tree_sitter_c_sharp_external_scanner_serialize(void *payload, char *buffer) {
-    CSharp_Scanner *scanner = (CSharp_Scanner *)payload;
+    Scanner *scanner = (Scanner *)payload;
 
     if (scanner->interpolation_stack.size * 4 > TREE_SITTER_SERIALIZATION_BUFFER_SIZE) {
         return 0;
@@ -75,7 +72,7 @@ unsigned tree_sitter_c_sharp_external_scanner_serialize(void *payload, char *buf
     buffer[size++] = (char)scanner->interpolation_stack.size;
 
     for (unsigned i = 0; i < scanner->interpolation_stack.size; i++) {
-        CSharp_Interpolation interpolation = scanner->interpolation_stack.contents[i];
+        Interpolation interpolation = scanner->interpolation_stack.contents[i];
         buffer[size++] = (char)interpolation.dollar_count;
         buffer[size++] = (char)interpolation.open_brace_count;
         buffer[size++] = (char)interpolation.quote_count;
@@ -86,7 +83,7 @@ unsigned tree_sitter_c_sharp_external_scanner_serialize(void *payload, char *buf
 }
 
 void tree_sitter_c_sharp_external_scanner_deserialize(void *payload, const char *buffer, unsigned length) {
-    CSharp_Scanner *scanner = (CSharp_Scanner *)payload;
+    Scanner *scanner = (Scanner *)payload;
 
     scanner->quote_count = 0;
     array_clear(&scanner->interpolation_stack);
@@ -98,7 +95,7 @@ void tree_sitter_c_sharp_external_scanner_deserialize(void *payload, const char 
         array_reserve(&scanner->interpolation_stack, scanner->interpolation_stack.size);
 
         for (unsigned i = 0; i < scanner->interpolation_stack.size; i++) {
-            CSharp_Interpolation interpolation = {0};
+            Interpolation interpolation = {0};
             interpolation.dollar_count = buffer[size++];
             interpolation.open_brace_count = buffer[size++];
             interpolation.quote_count = buffer[size++];
@@ -111,7 +108,7 @@ void tree_sitter_c_sharp_external_scanner_deserialize(void *payload, const char 
 }
 
 bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
-    CSharp_Scanner *scanner = (CSharp_Scanner *)payload;
+    Scanner *scanner = (Scanner *)payload;
 
     uint8_t brace_advanced = 0;
     uint8_t quote_count = 0;
@@ -210,7 +207,7 @@ bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, co
 
         if (dollar_advanced > 0 && (lexer->lookahead == '"' || lexer->lookahead == '@')) {
             lexer->result_symbol = INTERPOLATION_REGULAR_START;
-            CSharp_Interpolation interpolation = {
+            Interpolation interpolation = {
                 .dollar_count = dollar_advanced,
                 .open_brace_count = 0,
                 .quote_count = 0,
@@ -247,7 +244,7 @@ bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, co
     }
 
     if (valid_symbols[INTERPOLATION_START_QUOTE] && scanner->interpolation_stack.size > 0) {
-        CSharp_Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
+        Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
 
         while (lexer->lookahead == '"') {
             advance(lexer);
@@ -259,7 +256,7 @@ bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, co
     }
 
     if (valid_symbols[INTERPOLATION_END_QUOTE] && scanner->interpolation_stack.size > 0) {
-        CSharp_Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
+        Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
 
         while (lexer->lookahead == '"') {
             advance(lexer);
@@ -276,7 +273,7 @@ bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, co
     }
 
     if (valid_symbols[INTERPOLATION_OPEN_BRACE] && scanner->interpolation_stack.size > 0) {
-        CSharp_Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
+        Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
 
         while (lexer->lookahead == '{' && brace_advanced < current_interpolation->dollar_count) {
             advance(lexer);
@@ -293,7 +290,7 @@ bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, co
 
     if (valid_symbols[INTERPOLATION_CLOSE_BRACE] && scanner->interpolation_stack.size > 0) {
         uint8_t brace_advanced = 0;
-        CSharp_Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
+        Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
 
         while (iswspace(lexer->lookahead)) {
             advance(lexer);
@@ -329,7 +326,7 @@ bool tree_sitter_c_sharp_external_scanner_scan(void *payload, TSLexer *lexer, co
 
     if (valid_symbols[INTERPOLATION_STRING_CONTENT] && scanner->interpolation_stack.size > 0) {
         lexer->result_symbol = INTERPOLATION_STRING_CONTENT;
-        CSharp_Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
+        Interpolation *current_interpolation = array_back(&scanner->interpolation_stack);
 
         while (lexer->lookahead) {
             // top-down approach, first see if it's raw
